@@ -43,14 +43,15 @@ void executeCommand(char* str) {
 	args[stepindex] = NULL;
 	
 	/* I/O redirect */
-	for (int i = 0; i < stepindex; i++) {
-		if (strcmp(args[i], "<") == 0) {
-			freopen(args[i + 1], "r", stdin);
-		}
-		if (strcmp(args[i], ">") == 0) {
-			freopen(args[i + 1], "r", stdout);
-		}
-	}
+//	for (int i = 0; i < stepindex; i++) {
+//		if (strcmp(args[i], "<") == 0) {
+//			freopen(args[i + 1], "r", stdin);
+//		}
+//		if (strcmp(args[i], ">") == 0) {
+//			freopen(args[i + 1], "w", stdout);
+//		}
+//	}
+	
 	/* Internal commands */
 	if (strcmp(args[0], "exit") == 0) {
 		free(copy);
@@ -67,7 +68,7 @@ void executeCommand(char* str) {
 				add_history(copy, 0);
 				fprintf(stdout, "%s\n", args[1]);
 			} 
-		} else {
+} else {
 			
 			fprintf(stderr, "Invalid command\n");
 			add_history(copy, 1);
@@ -81,7 +82,6 @@ void executeCommand(char* str) {
 	} else {
 		
 		int extCmd = executeExternalCommand(args);
-		
 		add_history(copy, extCmd);
 	}
 
@@ -92,11 +92,29 @@ int executeExternalCommand(char* args[1026]) {
 	
 	int pid = fork();
 
-	if (pid == 0) {			// Child process
+	/** Forked processes **/
+	
+	/* Child process */
+	if (pid == 0) {		
+		
+		/* I/O Redirect */
+		int stepindex = 0;
+		while (args[stepindex] != NULL) {
+			if (strcmp(args[stepindex], "<") == 0) {
+				freopen(args[stepindex + 1], "r", stdin);
+			}
+			if (strcmp(args[stepindex], ">") == 0) {
+				freopen(args[stepindex + 1], "w", stdout);
+			}
+			stepindex++;
+		}
+	
 		execvp(args[0], args);	// first parameter is the file descriptor (command), second is args array
 		perror(args[0]);
 		exit(127);
-	} else if (pid > 0) {		// Parent process
+	
+	/* Parent process */
+	} else if (pid > 0) {
 		int exitStatus;
 		wait(&exitStatus);
 		if (exitStatus != -1) {
