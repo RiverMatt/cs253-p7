@@ -16,6 +16,11 @@
 #include <fcntl.h>
 
 static int cmdcount = 0;
+#define IN_REDIRECT 10		// these are like enums and make life easier
+#define OUT_REDIRECT 9
+#define NO_REDIRECT -1
+#define MAXPIPES 1024
+#define MAXFILENAME 1024
 
 void executeCommand(char* str) {
 	
@@ -27,23 +32,31 @@ void executeCommand(char* str) {
 	}  
 	cmdcount++;
 
-	char* copy = strndup(str, strlen(str));	// copy of the command string
+	char* copy = strndup(str, strlen(str));		// copy of the command string
 	
-	char* args[MAXLINE];			// array to store argument strings
+	char* args[MAXLINE];				// array to store argument strings
 	
-	char delimiters[4] = {' ', '<', '>', '|'};
-	char* token = strtok(str, delimiters);		// token for the first arg
+	char* pipes[MAXPIPES];
+	int numCommands = parsePipes(str, pipes);
+	int numPipes = numCommands - 1;
+	
+	char* token = strtok(str, " ");		// token for the first arg
 	
 	/* Putting the args into an args array */
 	int stepindex = 0;
 	while (token != NULL) {
 		args[stepindex] = token;
 		stepindex++;
-		token = strtok(NULL, delimiters);	// get the next token
+		token = strtok(NULL, " ");		// get the next token
 
 	}
 	args[stepindex] = NULL;
 	
+	if (numPipes == 0) {
+		runCommand(pipes[0]);
+	}
+
+
 	/* Internal commands */
 	if (strcmp(args[0], "exit") == 0) {
 		free(copy);
@@ -60,7 +73,7 @@ void executeCommand(char* str) {
 				add_history(copy, 0);
 				fprintf(stdout, "%s\n", args[1]);
 			} 
-} else {
+	} else {
 			
 			fprintf(stderr, "Invalid command\n");
 			add_history(copy, 1);
@@ -88,25 +101,6 @@ int executeExternalCommand(char* args[1026]) {
 	
 	/* Child process */
 	if (pid == 0) {		
-		
-		/* I/O Redirect */
-		int stepindex = 0;
-		while (args[stepindex] != NULL) {
-			if (strcmp(args[stepindex], "<") == 0) {
-				freopen(args[stepindex + 1], "r", stdin);
-			}
-
-			if (strcmp(args[stepindex], ">") == 0) {
-				int outfd = open(args[stepindex + 1], O_CREAT|O_RDWR, 0600);
-				close(1);
-				dup2(outfd, 1);
-				args = removeToken(args, stepindex);
-				args = removeToken(args, stepindex);
-			}
-
-			stepindex++;
-		}
-	
 		execvp(args[0], args);	// first parameter is the file descriptor (command), second is args array
 		perror(args[0]);
 		exit(127);
@@ -136,4 +130,52 @@ char** removeToken(char** arr, int index) {
 	}
 	arr[i] = NULL;
 	return arr;
+}
+
+int parsePipes(char* str, char** pipes) {
+	
+	char* token = strtok(str, "|");
+	
+	int stepindex = 0;
+	while (token != NULL) {
+		pipes[stepindex] = token;
+		stepindex++;
+		token = strtok(NULL, "|");
+
+	}
+	pipes[stepindex] = NULL;
+
+	return stepindex;
+}
+
+void runCommand(char* str) {
+	char filename[MAXFILENAME];
+	int res = parseRedirects(str, filename);
+	if (res == IN_REDIRECT) {
+		int infd = open(filename, O_CREAT|O_RDWR, 0600);
+		close(1);
+		dup2(infd, 0);
+	} else if (res == OUT_REDIRECT) {
+		int outfd = open(filename, O_CREAT|O_RDWR, 0600);
+		close(1);
+		dup2(outfd, 1);
+	}
+//	executeExternalCommand(str);
+}
+
+int parseRedirects(char* str, char* filename) {
+	for (int i = 0; i < strlen(str); i++) {
+		if (str[i] == '<') {
+			str[i] = '\0';
+			filename = &str[i+1];
+			return IN_REDIRECT;
+		}
+		
+		if (str[i] == '>') {
+			str[i] = '\0';
+			filename = &str[i+1];
+			return OUT_REDIRECT;
+		}
+	}
+	return NO_REDIRECT;
 }
