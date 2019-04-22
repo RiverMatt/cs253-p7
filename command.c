@@ -40,6 +40,7 @@ void executeCommand(char* str) {
 	int numCommands = parsePipes(str, pipes);
 	int numPipes = numCommands - 1;
 	
+	// I think the next 12 lines need to go away
 	char* token = strtok(str, " ");		// token for the first arg
 	
 	/* Putting the args into an args array */
@@ -122,6 +123,7 @@ int executeExternalCommand(char* args[1026]) {
 	
 }
 
+/* this is probably not needed anymore */
 char** removeToken(char** arr, int index) {
 	int i = index;
 	while (arr[i] != NULL) {
