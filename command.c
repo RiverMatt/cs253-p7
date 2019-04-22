@@ -12,7 +12,8 @@
 #include "history.h"
 #include <sys/types.h>
 #include <sys/wait.h>
-
+#include <sys/stat.h>
+#include <fcntl.h>
 
 static int cmdcount = 0;
 
@@ -29,28 +30,19 @@ void executeCommand(char* str) {
 	char* copy = strndup(str, strlen(str));	// copy of the command string
 	
 	char* args[MAXLINE];			// array to store argument strings
-
-	char* token = strtok(str, " ");		// token for the first arg
+	
+	char delimiters[4] = {' ', '<', '>', '|'};
+	char* token = strtok(str, delimiters);		// token for the first arg
 	
 	/* Putting the args into an args array */
 	int stepindex = 0;
 	while (token != NULL) {
 		args[stepindex] = token;
 		stepindex++;
-		token = strtok(NULL, " ");	// get the next token
+		token = strtok(NULL, delimiters);	// get the next token
 
 	}
 	args[stepindex] = NULL;
-	
-	/* I/O redirect */
-//	for (int i = 0; i < stepindex; i++) {
-//		if (strcmp(args[i], "<") == 0) {
-//			freopen(args[i + 1], "r", stdin);
-//		}
-//		if (strcmp(args[i], ">") == 0) {
-//			freopen(args[i + 1], "w", stdout);
-//		}
-//	}
 	
 	/* Internal commands */
 	if (strcmp(args[0], "exit") == 0) {
@@ -103,9 +95,15 @@ int executeExternalCommand(char* args[1026]) {
 			if (strcmp(args[stepindex], "<") == 0) {
 				freopen(args[stepindex + 1], "r", stdin);
 			}
+
 			if (strcmp(args[stepindex], ">") == 0) {
-				freopen(args[stepindex + 1], "w", stdout);
+				int outfd = open(args[stepindex + 1], O_CREAT|O_RDWR, 0600);
+				close(1);
+				dup2(outfd, 1);
+				args = removeToken(args, stepindex);
+				args = removeToken(args, stepindex);
 			}
+
 			stepindex++;
 		}
 	
@@ -128,4 +126,14 @@ int executeExternalCommand(char* args[1026]) {
 
 	return -1;
 	
+}
+
+char** removeToken(char** arr, int index) {
+	int i = index;
+	while (arr[i] != NULL) {
+		arr[i] = arr[i + 1];
+		i++;
+	}
+	arr[i] = NULL;
+	return arr;
 }

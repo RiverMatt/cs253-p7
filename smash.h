@@ -5,3 +5,4 @@
 #define MAXLINE 4096
 void executeCommand(char* str);
 int executeExternalCommand(char* args[1024]);
+char** removeToken(char** arr, int index);
