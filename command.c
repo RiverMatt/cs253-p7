@@ -68,20 +68,33 @@ void runCommand(char* str) {
 	int red = parseRedirect(str, filename);
 	if (red == IN_REDIRECT) {
 		int infd = open(filename, O_RDONLY, 0600);
+		int stdin_saved = dup(0);
 		close(0);
 		dup2(infd, 0);
 		close(infd);
 		executeCommand(str);
+		dup2(stdin_saved, 0);
+		close(stdin_saved);
 	} else if (red == OUT_REDIRECT) {
 		int outfd = open(filename, O_CREAT|O_RDWR, 0600);
+		int stdout_saved = dup(1);
 		close(1);
 		dup2(outfd, 1);
 		close(outfd);
 		executeCommand(str);
-		dup2(1, outfd);
+		dup2(stdout_saved, 1);
+		close(stdout_saved);
 	} else {
 		executeCommand(str);
 		
+	}
+
+	/* Cleaning up */
+	fflush(stdin);
+	fflush(stdout);
+
+	for (int i = 0; i < strlen(filename); i++) {
+		filename[i] = '\0';
 	}
 }
 
