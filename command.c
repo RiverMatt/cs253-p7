@@ -40,7 +40,8 @@ void parsePipes(char* str) {
 	cmdcount++;
 
 	copy = strndup(str, strlen(str));		// copy of the command string
-	
+
+	/* Parse for pipes */
 	char* pipes[MAXPIPES];
 	char* token = strtok(str, "|");
 	
@@ -53,31 +54,58 @@ void parsePipes(char* str) {
 	pipes[stepindex] = NULL;
 	
 	int numCommands = stepindex;
-	int numPipes = numCommands - 1;
+	int numPipes = numCommands-1;
 	
 	if (numPipes == 0) {
 		runCommand(pipes[0]);
 	} else {
 		int stdin_saved = dup(0);
 		int stdout_saved = dup(1);
+		// what if we set up the pipe here, then only forked one process at a time, as the fds stay active between?
 
-		if (numPipes == 1) {
-			runPipes(pipes[0], pipes[1]);
+		int pipeFDs[2];
+		pipe(pipeFDs);
+		
+		for (int i = 0; i < numPipes; i++) {
+			runPipe(pipes[i], pipeFDs[0], pipeFDs[1]);
 		}
-	
+		
+		close(pipeFDs[0]);
+		close(pipeFDs[1]);
 
+		dup2(stdin_saved, 0);
+		dup2(stdout_saved, 1);
+		fflush(stdin);
+		fflush(stdout);
 
-//		for (int i = 0; i < numPipes; i++) {
-			// pipes[i] -> pipes[i+1]
-			// write a function to fork the two processes, then direct them to runCommand()
-			// how do I maintain concurrency in the file descriptors? 
-			// will this method be running the second command twice?
-//			runPipes(pipes[i], pipes[i+1]);
-
-			// what if we created the pipe before the for loop and saved
-			// the file descriptors between as we stepped through?
-//		}
 	}
+}
+
+void runPipe(char* cmd, int fd0, int fd1) {
+	
+	int child = fork();
+	if (child < 0) {
+		perror("child fork failed!");
+		exit(-1);
+	}
+	
+	if (child == 0) {
+		close(1);
+		dup2(fd1, 1);
+
+		close(fd0);
+		close(fd1);
+
+		runCommand(cmd);
+		exit(127);
+	}
+
+	/* Parent */
+	int exitStatus;
+	wait(&exitStatus);
+		
+	close(0);
+	dup2(fd0, 0);
 }
 
 void runPipes(char* cmd0, char* cmd1) {
@@ -128,9 +156,9 @@ void runPipes(char* cmd0, char* cmd1) {
 	}
 
 	/* Parent */
-	int exitStatus0, exitStatus1, pid;
-	pid = wait(&exitStatus0);
-	pid = wait(&exitStatus1);
+	int exitStatus0, exitStatus1;
+	wait(&exitStatus0);
+	wait(&exitStatus1);
 }
 
 /**
