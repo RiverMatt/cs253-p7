@@ -8,3 +8,4 @@ int executeExternalCommand(char* args[1024]);
 void parsePipes(char* str);
 void runCommand(char* str);
 int parseRedirect(char* str, char* filename);
+void runPipes(char* cmd0, char* cmd1);

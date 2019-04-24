@@ -57,7 +57,80 @@ void parsePipes(char* str) {
 	
 	if (numPipes == 0) {
 		runCommand(pipes[0]);
+	} else {
+		int stdin_saved = dup(0);
+		int stdout_saved = dup(1);
+
+		if (numPipes == 1) {
+			runPipes(pipes[0], pipes[1]);
+		}
+	
+
+
+//		for (int i = 0; i < numPipes; i++) {
+			// pipes[i] -> pipes[i+1]
+			// write a function to fork the two processes, then direct them to runCommand()
+			// how do I maintain concurrency in the file descriptors? 
+			// will this method be running the second command twice?
+//			runPipes(pipes[i], pipes[i+1]);
+
+			// what if we created the pipe before the for loop and saved
+			// the file descriptors between as we stepped through?
+//		}
 	}
+}
+
+void runPipes(char* cmd0, char* cmd1) {
+
+	/* Pipe File Descriptors */
+	int pipeFDs[2];
+	
+	/* Creating the pipe */
+	if (pipe(pipeFDs) < 0) {
+		perror("Pipe failed!");
+		exit(-1);
+	}
+	
+	/* Fork child0 process */
+	int child0 = fork();
+	if (child0 < 0) {
+		perror("child0 fork failed!");
+		exit(-1);
+	}
+	
+	if (child0 == 0) {
+		close(1);
+		dup2(pipeFDs[1], 1);
+
+		close(pipeFDs[0]);
+		close(pipeFDs[1]);
+
+		runCommand(cmd0);
+	}
+
+	close(pipeFDs[1]);
+	
+	/* Fork child1 process */
+	int child1 = fork();
+	if (child1 < 0) {
+		perror("child1 fork failed!");
+		exit(-1);
+	}
+
+	if (child1 == 0) {
+		close(0);
+		dup2(pipeFDs[0], 0);
+
+		close(pipeFDs[0]);
+		close(pipeFDs[1]);
+
+		runCommand(cmd1);
+	}
+
+	/* Parent */
+	int exitStatus0, exitStatus1, pid;
+	pid = wait(&exitStatus0);
+	pid = wait(&exitStatus1);
 }
 
 /**
