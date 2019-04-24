@@ -15,15 +15,15 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-static int cmdcount = 0;
-static int firstSequenceNumber;
-static char* copy;
-
 #define IN_REDIRECT 10		// these are like enums and make life easier
 #define OUT_REDIRECT 9
 #define NO_REDIRECT -1
 #define MAXPIPES 1024
 #define MAXFILENAME 1024
+
+static int cmdcount = 0;
+static int firstSequenceNumber;
+static char* copy;
 
 /**
  * Entry point for this file, parses for pipes then
@@ -32,14 +32,14 @@ static char* copy;
 void parsePipes(char* str) {
 	
 	/* For history */
-	int firstSequenceNumber = 1;
+	firstSequenceNumber = 1;
 
 	if (cmdcount >= MAXHISTORY) {
 		firstSequenceNumber = cmdcount - MAXHISTORY + 1;
 	}  
 	cmdcount++;
 
-	char* copy = strndup(str, strlen(str));		// copy of the command string
+	copy = strndup(str, strlen(str));		// copy of the command string
 	
 	char* pipes[MAXPIPES];
 	char* token = strtok(str, "|");
@@ -147,7 +147,6 @@ void executeCommand(char* str) {
 
 	/* External commands */
 	} else {
-		
 		int extCmd = executeExternalCommand(args);
 		add_history(copy, extCmd);
 	}
