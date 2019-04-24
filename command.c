@@ -49,7 +49,6 @@ void parsePipes(char* str) {
 		pipes[stepindex] = token;
 		stepindex++;
 		token = strtok(NULL, "|");
-
 	}
 	pipes[stepindex] = NULL;
 	
@@ -108,7 +107,6 @@ int parseRedirect(char* str, char* filename) {
 
 void executeCommand(char* str) {
 	
-	
 	char* args[MAXLINE];				// array to store argument strings
 	
 	char* token = strtok(str, " ");			// token for the first arg
@@ -119,7 +117,6 @@ void executeCommand(char* str) {
 		args[stepindex] = token;
 		stepindex++;
 		token = strtok(NULL, " ");		// get the next token
-
 	}
 	args[stepindex] = NULL;
 	
@@ -185,5 +182,4 @@ int executeExternalCommand(char* args[1026]) {
 
 	return -1;
 	
-}
-
+} 
