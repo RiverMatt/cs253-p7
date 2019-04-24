@@ -56,14 +56,14 @@ void parsePipes(char* str) {
 	int numPipes = numCommands - 1;
 	
 	if (numPipes == 0) {
-		applyRedirect(pipes[0]);
+		runCommand(pipes[0]);
 	}
 }
 
 /**
- * Applies the I/O redirect, if any.
+ * Applies the I/O redirect, if any, and runs the command.
  */
-void applyRedirect(char* str) {
+void runCommand(char* str) {
 	char filename[MAXFILENAME];
 	int red = parseRedirect(str, filename);
 	if (red == IN_REDIRECT) {
@@ -78,6 +78,7 @@ void applyRedirect(char* str) {
 		dup2(outfd, 1);
 		close(outfd);
 		executeCommand(str);
+		dup2(1, outfd);
 	} else {
 		executeCommand(str);
 		
@@ -92,13 +93,37 @@ int parseRedirect(char* str, char* filename) {
 	for (int i = 0; i < strlen(str); i++) {
 		if (str[i] == '<') {
 			str[i] = '\0';
-			filename = &str[i+1];
+			while (str[i+1] == ' ') {
+				i++;
+			}
+			/* Trim leading white space */
+			while (str[i+1] == ' ') {
+				i++;
+			}
+			strncat(filename, &str[i+1], strlen(&str[i+1]));
+			/* Trim trailing white space */
+			for (int j = 0; j < strlen(filename); j++) {
+				if (filename[j] == ' ') {
+					filename[j] = '\0';
+				}
+			}
+//			filename = &str[i+1];
 			return IN_REDIRECT;
 		}
 		
 		if (str[i] == '>') {
 			str[i] = '\0';
-			filename = &str[i+1];
+			/* Trim leading white space */
+			while (str[i+1] == ' ') {
+				i++;
+			}
+			strncat(filename, &str[i+1], strlen(&str[i+1]));
+			/* Trim trailing white space */
+			for (int j = 0; j < strlen(filename); j++) {
+				if (filename[j] == ' ') {
+					filename[j] = '\0';
+				}
+			}
 			return OUT_REDIRECT;
 		}
 	}

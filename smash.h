@@ -6,5 +6,5 @@
 void executeCommand(char* str);
 int executeExternalCommand(char* args[1024]);
 void parsePipes(char* str);
-void applyRedirect(char* str);
+void runCommand(char* str);
 int parseRedirect(char* str, char* filename);
