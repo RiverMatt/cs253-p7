@@ -5,7 +5,6 @@
 #define MAXLINE 4096
 void executeCommand(char* str);
 int executeExternalCommand(char* args[1024]);
-char** removeToken(char** arr, int index);
-int parsePipes(char* str, char** pipes);
-void runCommand(char* str);
-int parseRedirects(char* str, char* filename);
+void parsePipes(char* str);
+void applyRedirect(char* str);
+int parseRedirect(char* str, char* filename);

@@ -16,13 +16,20 @@
 #include <fcntl.h>
 
 static int cmdcount = 0;
+static int firstSequenceNumber;
+static char* copy;
+
 #define IN_REDIRECT 10		// these are like enums and make life easier
 #define OUT_REDIRECT 9
 #define NO_REDIRECT -1
 #define MAXPIPES 1024
 #define MAXFILENAME 1024
 
-void executeCommand(char* str) {
+/**
+ * Entry point for this file, parses for pipes then
+ * passes the command(s) on for execution.
+ */
+void parsePipes(char* str) {
 	
 	/* For history */
 	int firstSequenceNumber = 1;
@@ -34,13 +41,75 @@ void executeCommand(char* str) {
 
 	char* copy = strndup(str, strlen(str));		// copy of the command string
 	
-	char* args[MAXLINE];				// array to store argument strings
+	char* pipes[MAXPIPES];		// should this be a char**?
+	char* token = strtok(str, "|");
 	
-	char* pipes[MAXPIPES];
-	int numCommands = parsePipes(str, pipes);
+	int stepindex = 0;
+	while (token != NULL) {
+		pipes[stepindex] = token;
+		stepindex++;
+		token = strtok(NULL, "|");
+
+	}
+	pipes[stepindex] = NULL;
+	
+	int numCommands = stepindex;
 	int numPipes = numCommands - 1;
 	
-	// I think the next 12 lines need to go away
+	if (numPipes == 0) {
+		applyRedirect(pipes[0]);
+	}
+}
+
+/**
+ * Applies the I/O redirect, if any.
+ */
+void applyRedirect(char* str) {
+	char filename[MAXFILENAME];
+	int red = parseRedirect(str, filename);
+	if (red == IN_REDIRECT) {
+		int infd = open(filename, O_RDONLY, 0600);
+		close(0);
+		dup2(infd, 0);
+		close(infd);
+		executeCommand(str);
+	} else if (red == OUT_REDIRECT) {
+		int outfd = open(filename, O_CREAT|O_RDWR, 0600);
+		close(1);
+		dup2(outfd, 1);
+		close(outfd);
+		executeCommand(str);
+	} else {
+		executeCommand(str);
+		
+	}
+}
+
+/**
+ * Parser for I/O redirects. This places a NULL after the command
+ * part of the string to remove the redirect char and file name.
+ */
+int parseRedirect(char* str, char* filename) {
+	for (int i = 0; i < strlen(str); i++) {
+		if (str[i] == '<') {
+			str[i] = '\0';
+			filename = &str[i+1];
+			return IN_REDIRECT;
+		}
+		
+		if (str[i] == '>') {
+			str[i] = '\0';
+			filename = &str[i+1];
+			return OUT_REDIRECT;
+		}
+	}
+	return NO_REDIRECT;
+}
+void executeCommand(char* str) {
+	
+	
+	char* args[MAXLINE];				// array to store argument strings
+	
 	char* token = strtok(str, " ");		// token for the first arg
 	
 	/* Putting the args into an args array */
@@ -53,11 +122,6 @@ void executeCommand(char* str) {
 	}
 	args[stepindex] = NULL;
 	
-	if (numPipes == 0) {
-		runCommand(pipes[0]);
-	}
-
-
 	/* Internal commands */
 	if (strcmp(args[0], "exit") == 0) {
 		free(copy);
@@ -123,61 +187,3 @@ int executeExternalCommand(char* args[1026]) {
 	
 }
 
-/* this is probably not needed anymore */
-char** removeToken(char** arr, int index) {
-	int i = index;
-	while (arr[i] != NULL) {
-		arr[i] = arr[i + 1];
-		i++;
-	}
-	arr[i] = NULL;
-	return arr;
-}
-
-int parsePipes(char* str, char** pipes) {
-	
-	char* token = strtok(str, "|");
-	
-	int stepindex = 0;
-	while (token != NULL) {
-		pipes[stepindex] = token;
-		stepindex++;
-		token = strtok(NULL, "|");
-
-	}
-	pipes[stepindex] = NULL;
-
-	return stepindex;
-}
-
-void runCommand(char* str) {
-	char filename[MAXFILENAME];
-	int res = parseRedirects(str, filename);
-	if (res == IN_REDIRECT) {
-		int infd = open(filename, O_CREAT|O_RDWR, 0600);
-		close(1);
-		dup2(infd, 0);
-	} else if (res == OUT_REDIRECT) {
-		int outfd = open(filename, O_CREAT|O_RDWR, 0600);
-		close(1);
-		dup2(outfd, 1);
-	}
-//	executeExternalCommand(str);
-}
-
-int parseRedirects(char* str, char* filename) {
-	for (int i = 0; i < strlen(str); i++) {
-		if (str[i] == '<') {
-			str[i] = '\0';
-			filename = &str[i+1];
-			return IN_REDIRECT;
-		}
-		
-		if (str[i] == '>') {
-			str[i] = '\0';
-			filename = &str[i+1];
-			return OUT_REDIRECT;
-		}
-	}
-	return NO_REDIRECT;
-}

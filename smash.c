@@ -15,7 +15,7 @@ int main(void) {
 	while (fgets(bfr, MAXLINE, stdin) != NULL) {
 		bfr[strlen(bfr) - 1] = '\0'; 		// replace the newline char with NUL
 		if (strlen(bfr) != 0) {
-			executeCommand(bfr);
+			parsePipes(bfr);
 		}
 		fputs("$ ", stderr);
 	}
