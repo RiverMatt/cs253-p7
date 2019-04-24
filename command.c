@@ -41,7 +41,7 @@ void parsePipes(char* str) {
 
 	char* copy = strndup(str, strlen(str));		// copy of the command string
 	
-	char* pipes[MAXPIPES];		// should this be a char**?
+	char* pipes[MAXPIPES];
 	char* token = strtok(str, "|");
 	
 	int stepindex = 0;
@@ -105,12 +105,13 @@ int parseRedirect(char* str, char* filename) {
 	}
 	return NO_REDIRECT;
 }
+
 void executeCommand(char* str) {
 	
 	
 	char* args[MAXLINE];				// array to store argument strings
 	
-	char* token = strtok(str, " ");		// token for the first arg
+	char* token = strtok(str, " ");			// token for the first arg
 	
 	/* Putting the args into an args array */
 	int stepindex = 0;
@@ -128,7 +129,7 @@ void executeCommand(char* str) {
 		clear_history();
 		exit(0);
 	} else if (strcmp(args[0], "cd") == 0) {
-		if (stepindex == 2){
+		if (stepindex == 2) {
 			int cdir = chdir(args[1]);
 
 			if (cdir != 0) {
@@ -138,8 +139,7 @@ void executeCommand(char* str) {
 				add_history(copy, 0);
 				fprintf(stdout, "%s\n", args[1]);
 			} 
-	} else {
-			
+		} else {
 			fprintf(stderr, "Invalid command\n");
 			add_history(copy, 1);
 		}
