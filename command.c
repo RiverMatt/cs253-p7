@@ -61,17 +61,53 @@ void parsePipes(char* str) {
 	} else {
 		int stdin_saved = dup(0);
 		int stdout_saved = dup(1);
-		// what if we set up the pipe here, then only forked one process at a time, as the fds stay active between?
-
-		int pipeFDs[2];
-		pipe(pipeFDs);
 		
+		/* Setting up the pipeline for the children to traverse */
+		int pipeLines[2*numPipes];
 		for (int i = 0; i < numPipes; i++) {
-			runPipe(pipes[i], pipeFDs[0], pipeFDs[1]);
+			pipe(&pipeLine[2*i]);
+		}
+
+		/* Forking and walking traversing the pipeline */
+		for (int i = 0; i < numCommands; i++) {
+//			runPipe(pipes[i], pipeLine[i], pipeLine[i+1]);
+			int child = fork();
+			if (child < 0) {
+				perror("child fork failed!");
+				exit(-1);
+				}
+	
+			if (child == 0) {
+				dup2(inlet, 0)
+				runCommand(cmd);
+				exit(127);
+			}
+	
+		
+		}
+		for (int i = 0; i < numCommands; i++) {
+			int exitStatus;
+			wait(&exitStatus);
 		}
 		
-		close(pipeFDs[0]);
-		close(pipeFDs[1]);
+
+
+
+//		int pipeFDs[2];
+//		pipe(pipeFDs);
+//		
+//		for (int i = 0; i < numPipes; i++) {
+//			runPipe(pipes[i], pipeFDs[0], pipeFDs[1]);
+//			if (i-1 == numPipes) {
+//				
+//			}
+//		}
+//
+//		close(pipeFDs[0]);
+//		close(pipeFDs[1]);
+//
+//		dup2(pipeFDs[0], 1);
+//		dup2(pipeFDs[1], 0);
 
 		dup2(stdin_saved, 0);
 		dup2(stdout_saved, 1);
@@ -81,6 +117,33 @@ void parsePipes(char* str) {
 	}
 }
 
+
+void runPipe(char* cmd, int outlet, int inlet) {
+	int child = fork();
+	if (child < 0) {
+		perror("child fork failed!");
+		exit(-1);
+	}
+
+	if (child == 0) {
+		dup2(inlet, 0)
+		runCommand(cmd);
+		exit(127);
+	}
+
+	int exitStatus;
+	wait(&exitStatus);
+
+}
+
+
+/*
+ * Idea is to have child1 read from stdin, write to fd1
+ * dup2(fd0, 0)
+ * child2 reads from stdin, writes to fd1
+ * dup2(fd0,0)
+ * 
+
 void runPipe(char* cmd, int fd0, int fd1) {
 	
 	int child = fork();
@@ -88,78 +151,23 @@ void runPipe(char* cmd, int fd0, int fd1) {
 		perror("child fork failed!");
 		exit(-1);
 	}
-	
+
 	if (child == 0) {
 		close(1);
 		dup2(fd1, 1);
-
-		close(fd0);
-		close(fd1);
-
+		
 		runCommand(cmd);
+		close(fd1);
 		exit(127);
 	}
 
-	/* Parent */
 	int exitStatus;
 	wait(&exitStatus);
 		
 	close(0);
 	dup2(fd0, 0);
 }
-
-void runPipes(char* cmd0, char* cmd1) {
-
-	/* Pipe File Descriptors */
-	int pipeFDs[2];
-	
-	/* Creating the pipe */
-	if (pipe(pipeFDs) < 0) {
-		perror("Pipe failed!");
-		exit(-1);
-	}
-	
-	/* Fork child0 process */
-	int child0 = fork();
-	if (child0 < 0) {
-		perror("child0 fork failed!");
-		exit(-1);
-	}
-	
-	if (child0 == 0) {
-		close(1);
-		dup2(pipeFDs[1], 1);
-
-		close(pipeFDs[0]);
-		close(pipeFDs[1]);
-
-		runCommand(cmd0);
-	}
-
-	close(pipeFDs[1]);
-	
-	/* Fork child1 process */
-	int child1 = fork();
-	if (child1 < 0) {
-		perror("child1 fork failed!");
-		exit(-1);
-	}
-
-	if (child1 == 0) {
-		close(0);
-		dup2(pipeFDs[0], 0);
-
-		close(pipeFDs[0]);
-		close(pipeFDs[1]);
-
-		runCommand(cmd1);
-	}
-
-	/* Parent */
-	int exitStatus0, exitStatus1;
-	wait(&exitStatus0);
-	wait(&exitStatus1);
-}
+*/
 
 /**
  * Applies the I/O redirect, if any, and runs the command.
