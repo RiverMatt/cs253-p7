@@ -63,14 +63,29 @@ void parsePipes(char* str) {
 		int stdout_saved = dup(1);
 		
 		/* Setting up the pipeline for the children to traverse */
-		int pipeLines[2*numPipes];
+		int pipeLine[2*numPipes];
 		for (int i = 0; i < numPipes; i++) {
 			pipe(&pipeLine[2*i]);
 		}
 
-		/* Forking and walking traversing the pipeline */
+		/* Forking and traversing the pipeline */
 		for (int i = 0; i < numCommands; i++) {
-//			runPipe(pipes[i], pipeLine[i], pipeLine[i+1]);
+			if (i == 0) {
+				dup2(pipeLine[i], 0);
+				dup2(pipeLine[i+1], 1);
+				runPipe(pipes[i]);
+			} else {
+				dup2(0, pipeLine[i]);
+				dup2(pipeLine[i+1], 1);
+				runPipe(pipes[i]);
+			} if (i+1 == numCommands) {
+				dup2(1, pipeLine[i+1]);
+			}
+		}
+
+			
+			
+/* Tobi's suggestion			
 			int child = fork();
 			if (child < 0) {
 				perror("child fork failed!");
@@ -78,8 +93,15 @@ void parsePipes(char* str) {
 				}
 	
 			if (child == 0) {
-				dup2(inlet, 0)
-				runCommand(cmd);
+//				dup2(inlet, 0);
+//				runCommand(cmd);
+				if (i == 0) {
+					dup2(0, pipeLine[i]);
+				} else {
+					dup2(pipeLine[i], pipeLine[i+1]);
+				}
+				dup2(pipeLine[i+1], 1);
+				runCommand(pipes[i]);
 				exit(127);
 			}
 	
@@ -90,35 +112,19 @@ void parsePipes(char* str) {
 			wait(&exitStatus);
 		}
 		
+*/
 
-
-
-//		int pipeFDs[2];
-//		pipe(pipeFDs);
-//		
-//		for (int i = 0; i < numPipes; i++) {
-//			runPipe(pipes[i], pipeFDs[0], pipeFDs[1]);
-//			if (i-1 == numPipes) {
-//				
-//			}
-//		}
-//
-//		close(pipeFDs[0]);
-//		close(pipeFDs[1]);
-//
-//		dup2(pipeFDs[0], 1);
-//		dup2(pipeFDs[1], 0);
 
 		dup2(stdin_saved, 0);
 		dup2(stdout_saved, 1);
 		fflush(stdin);
 		fflush(stdout);
-
 	}
 }
 
 
-void runPipe(char* cmd, int outlet, int inlet) {
+void runPipe(char* cmd) {
+	
 	int child = fork();
 	if (child < 0) {
 		perror("child fork failed!");
@@ -126,7 +132,6 @@ void runPipe(char* cmd, int outlet, int inlet) {
 	}
 
 	if (child == 0) {
-		dup2(inlet, 0)
 		runCommand(cmd);
 		exit(127);
 	}
@@ -229,7 +234,6 @@ int parseRedirect(char* str, char* filename) {
 					filename[j] = '\0';
 				}
 			}
-//			filename = &str[i+1];
 			return IN_REDIRECT;
 		}
 		
