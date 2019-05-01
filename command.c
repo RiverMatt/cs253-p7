@@ -85,6 +85,19 @@ void parsePipes(char* str) {
 					runCommand(pipes[i]);
 					close(pipeline[1]);
 					
+				} else if (i+1 == numCommands) {
+					
+					int readindex = (i-1)*2;
+					dup2(pipeline[readindex], 0);
+				
+					for (int j = 0; j < numPipes*2; j++) {
+						if (j != readindex) {
+							close(pipeline[j]);
+						}
+					}
+						
+					runCommand(pipes[i]);
+					close(pipeline[readindex]);
 				} else {
 					int readindex = (i-1)*2;
 					int writeindex = readindex+3;
@@ -92,7 +105,7 @@ void parsePipes(char* str) {
 					dup2(pipeline[writeindex], 1);
 				
 					for (int j = 0; j < numPipes*2; j++) {
-						if (i != readindex && i != writeindex) {
+						if (j != readindex && j != writeindex) {
 							close(pipeline[j]);
 						}
 					}
@@ -101,34 +114,20 @@ void parsePipes(char* str) {
 					close(pipeline[readindex]);
 					close(pipeline[writeindex]);
 
-				} if (i+1 == numCommands) {
-					
-					int readindex = (i-1)*2;
-					dup2(pipeline[readindex], 0);
-				
-					for (int j = 0; j < numPipes*2; j++) {
-						if (i != readindex) {
-							close(pipeline[j]);
-						}
-					}
-						
-					runCommand(pipes[i]);
-					close(pipeline[readindex]);
-				}
-
+				} 
 				exit(127); // this should be exit status variable
 			}
-			for (int i = 0; i < numPipes*2; i++) {
-				close(pipeline[i]);
-			}
-			for (int i = 0; i < numCommands; i++) {
-				int exitStatus = 0; // this will be the status from 3 lines above
-				wait(&exitStatus);
-			}
 
-			
+		
 		}
 
+		for (int i = 0; i < numPipes*2; i++) {
+			close(pipeline[i]);
+		}
+		for (int i = 0; i < numCommands; i++) {
+			int exitStatus = 0; // this will be the status from 3 lines above
+			wait(&exitStatus);
+		}
 	}
 }
 
@@ -143,7 +142,6 @@ void runCommand(char* str) {
 		int stdin_saved = dup(0);
 		close(0);
 		dup2(infd, 0);
-		close(infd);
 		executeCommand(str);
 		dup2(stdin_saved, 0);
 		close(stdin_saved);
