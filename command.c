@@ -59,120 +59,78 @@ void parsePipes(char* str) {
 	if (numPipes == 0) {
 		runCommand(pipes[0]);
 	} else {
-		int stdin_saved = dup(0);
-		int stdout_saved = dup(1);
-		
+
 		/* Setting up the pipeline for the children to traverse */
-		int pipeLine[2*numPipes];
+		int pipeline[2*numPipes];
 		for (int i = 0; i < numPipes; i++) {
-			pipe(&pipeLine[2*i]);
+			pipe(&pipeline[2*i]);
 		}
 
 		/* Forking and traversing the pipeline */
 		for (int i = 0; i < numCommands; i++) {
-			if (i == 0) {
-				dup2(pipeLine[i], 0);
-				dup2(pipeLine[i+1], 1);
-				runPipe(pipes[i]);
-			} else {
-				dup2(0, pipeLine[i]);
-				dup2(pipeLine[i+1], 1);
-				runPipe(pipes[i]);
-			} if (i+1 == numCommands) {
-				dup2(1, pipeLine[i+1]);
-			}
-		}
-
-			
-			
-/* Tobi's suggestion			
 			int child = fork();
 			if (child < 0) {
 				perror("child fork failed!");
 				exit(-1);
-				}
-	
-			if (child == 0) {
-//				dup2(inlet, 0);
-//				runCommand(cmd);
+			} else if (child == 0) {
+			
 				if (i == 0) {
-					dup2(0, pipeLine[i]);
+					close(pipeline[0]);
+
+					dup2(pipeline[1], 1);
+					
+					for (int j = 2; j < numPipes*2; j++) {
+						close(pipeline[j]);
+					}
+					runCommand(pipes[i]);
+					close(pipeline[1]);
+					
 				} else {
-					dup2(pipeLine[i], pipeLine[i+1]);
+					int readindex = (i-1)*2;
+					int writeindex = readindex+3;
+					dup2(pipeline[readindex], 0);
+					dup2(pipeline[writeindex], 1);
+				
+					for (int j = 0; j < numPipes*2; j++) {
+						if (i != readindex && i != writeindex) {
+							close(pipeline[j]);
+						}
+					}
+						
+					runCommand(pipes[i]);
+					close(pipeline[readindex]);
+					close(pipeline[writeindex]);
+
+				} if (i+1 == numCommands) {
+					
+					int readindex = (i-1)*2;
+					dup2(pipeline[readindex], 0);
+				
+					for (int j = 0; j < numPipes*2; j++) {
+						if (i != readindex) {
+							close(pipeline[j]);
+						}
+					}
+						
+					runCommand(pipes[i]);
+					close(pipeline[readindex]);
 				}
-				dup2(pipeLine[i+1], 1);
-				runCommand(pipes[i]);
-				exit(127);
+
+				exit(127); // this should be exit status variable
 			}
-	
-		
+			for (int i = 0; i < numPipes*2; i++) {
+				close(pipeline[i]);
+			}
+			for (int i = 0; i < numCommands; i++) {
+				int exitStatus = 0; // this will be the status from 3 lines above
+				wait(&exitStatus);
+			}
+
+			
 		}
-		for (int i = 0; i < numCommands; i++) {
-			int exitStatus;
-			wait(&exitStatus);
-		}
-		
-*/
 
-
-		dup2(stdin_saved, 0);
-		dup2(stdout_saved, 1);
-		fflush(stdin);
-		fflush(stdout);
 	}
 }
-
-
-void runPipe(char* cmd) {
-	
-	int child = fork();
-	if (child < 0) {
-		perror("child fork failed!");
-		exit(-1);
-	}
-
-	if (child == 0) {
-		runCommand(cmd);
-		exit(127);
-	}
-
-	int exitStatus;
-	wait(&exitStatus);
-
-}
-
-
-/*
- * Idea is to have child1 read from stdin, write to fd1
- * dup2(fd0, 0)
- * child2 reads from stdin, writes to fd1
- * dup2(fd0,0)
- * 
-
-void runPipe(char* cmd, int fd0, int fd1) {
-	
-	int child = fork();
-	if (child < 0) {
-		perror("child fork failed!");
-		exit(-1);
-	}
-
-	if (child == 0) {
-		close(1);
-		dup2(fd1, 1);
-		
-		runCommand(cmd);
-		close(fd1);
-		exit(127);
-	}
-
-	int exitStatus;
-	wait(&exitStatus);
-		
-	close(0);
-	dup2(fd0, 0);
-}
-*/
 
 /**
  * Applies the I/O redirect, if any, and runs the command.
@@ -223,33 +181,39 @@ int parseRedirect(char* str, char* filename) {
 			while (str[i+1] == ' ') {
 				i++;
 			}
+			
 			/* Trim leading white space */
 			while (str[i+1] == ' ') {
 				i++;
 			}
 			strncat(filename, &str[i+1], strlen(&str[i+1]));
+
 			/* Trim trailing white space */
 			for (int j = 0; j < strlen(filename); j++) {
 				if (filename[j] == ' ') {
 					filename[j] = '\0';
 				}
 			}
+		
 			return IN_REDIRECT;
 		}
 		
 		if (str[i] == '>') {
 			str[i] = '\0';
+		
 			/* Trim leading white space */
 			while (str[i+1] == ' ') {
 				i++;
 			}
 			strncat(filename, &str[i+1], strlen(&str[i+1]));
+		
 			/* Trim trailing white space */
 			for (int j = 0; j < strlen(filename); j++) {
 				if (filename[j] == ' ') {
 					filename[j] = '\0';
 				}
 			}
+		
 			return OUT_REDIRECT;
 		}
 	}

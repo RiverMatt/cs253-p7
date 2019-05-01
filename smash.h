@@ -9,4 +9,3 @@ void parsePipes(char* str);
 void runCommand(char* str);
 int parseRedirect(char* str, char* filename);
 void runPipes(char* cmd0, char* cmd1);
-void runPipe(char* cmd);
