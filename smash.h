@@ -3,9 +3,9 @@
  * This function will handle parsing the command string.
  */
 #define MAXLINE 4096
-void executeCommand(char* str);
+int executeCommand(char* str);
 int executeExternalCommand(char* args[1024]);
 void parsePipes(char* str);
-void runCommand(char* str);
+int runCommand(char* str);
 int parseRedirect(char* str, char* filename);
-void runPipes(char* cmd0, char* cmd1);
+void myHandler(int _signal);

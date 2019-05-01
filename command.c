@@ -55,9 +55,10 @@ void parsePipes(char* str) {
 	
 	int numCommands = stepindex;
 	int numPipes = numCommands-1;
+	int exitStatus;
 	
 	if (numPipes == 0) {
-		runCommand(pipes[0]);
+		exitStatus = runCommand(pipes[0]);
 	} else {
 
 		/* Setting up the pipeline for the children to traverse */
@@ -73,6 +74,7 @@ void parsePipes(char* str) {
 				perror("child fork failed!");
 				exit(-1);
 			} else if (child == 0) {
+				int exitStatus;
 			
 				if (i == 0) {
 					close(pipeline[0]);
@@ -82,7 +84,7 @@ void parsePipes(char* str) {
 					for (int j = 2; j < numPipes*2; j++) {
 						close(pipeline[j]);
 					}
-					runCommand(pipes[i]);
+					exitStatus = runCommand(pipes[i]);
 					close(pipeline[1]);
 					
 				} else if (i+1 == numCommands) {
@@ -96,7 +98,7 @@ void parsePipes(char* str) {
 						}
 					}
 						
-					runCommand(pipes[i]);
+					exitStatus = runCommand(pipes[i]);
 					close(pipeline[readindex]);
 				} else {
 					int readindex = (i-1)*2;
@@ -110,12 +112,12 @@ void parsePipes(char* str) {
 						}
 					}
 						
-					runCommand(pipes[i]);
+					exitStatus = runCommand(pipes[i]);
 					close(pipeline[readindex]);
 					close(pipeline[writeindex]);
 
 				} 
-				exit(127); // this should be exit status variable
+				exit(exitStatus); // this should be exit status variable
 			}
 
 		
@@ -125,16 +127,19 @@ void parsePipes(char* str) {
 			close(pipeline[i]);
 		}
 		for (int i = 0; i < numCommands; i++) {
-			int exitStatus = 0; // this will be the status from 3 lines above
 			wait(&exitStatus);
 		}
+	if (exitStatus != -1) {
+		exitStatus = 127;
+	}
+	add_history(copy, exitStatus);
 	}
 }
 
 /**
  * Applies the I/O redirect, if any, and runs the command.
  */
-void runCommand(char* str) {
+int runCommand(char* str) {
 	char filename[MAXFILENAME];
 	int red = parseRedirect(str, filename);
 	if (red == IN_REDIRECT) {
@@ -142,21 +147,23 @@ void runCommand(char* str) {
 		int stdin_saved = dup(0);
 		close(0);
 		dup2(infd, 0);
-		executeCommand(str);
+		int exitStatus = executeCommand(str);
 		dup2(stdin_saved, 0);
 		close(stdin_saved);
+		return exitStatus;
 	} else if (red == OUT_REDIRECT) {
 		int outfd = open(filename, O_CREAT|O_RDWR, 0600);
 		int stdout_saved = dup(1);
 		close(1);
 		dup2(outfd, 1);
 		close(outfd);
-		executeCommand(str);
+		int exitStatus = executeCommand(str);
 		dup2(stdout_saved, 1);
 		close(stdout_saved);
+		return exitStatus;
 	} else {
-		executeCommand(str);
-		
+		int exitStatus = executeCommand(str);
+		return exitStatus;
 	}
 
 	/* Cleaning up */
@@ -218,7 +225,7 @@ int parseRedirect(char* str, char* filename) {
 	return NO_REDIRECT;
 }
 
-void executeCommand(char* str) {
+int executeCommand(char* str) {
 	
 	char* args[MAXLINE];				// array to store argument strings
 	
@@ -245,29 +252,34 @@ void executeCommand(char* str) {
 			if (cdir != 0) {
 				add_history(copy, 1);
 				perror(args[stepindex]);
+				return -1;
 			} else {
 				add_history(copy, 0);
 				fprintf(stdout, "%s\n", args[1]);
+				return 0;
 			} 
 		} else {
 			fprintf(stderr, "Invalid command\n");
 			add_history(copy, 1);
+			return 1;
 		}
 	} else if (strcmp(args[0], "history") == 0) {
 		
 		print_history(firstSequenceNumber);
 		add_history(copy, 0);
+		return 0;
 
 	/* External commands */
 	} else {
 		int extCmd = executeExternalCommand(args);
 		add_history(copy, extCmd);
+		return extCmd;
 	}
 
 	
 }
 
-int executeExternalCommand(char* args[1026]) {
+int executeExternalCommand(char* args[1026]) { // return status
 	
 	int pid = fork();
 
