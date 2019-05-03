@@ -55,7 +55,7 @@ void parsePipes(char* str) {
 	
 	int numCommands = stepindex;
 	int numPipes = numCommands-1;
-	int exitStatus;
+	static int exitStatus;
 	
 	if (numPipes == 0) {
 		exitStatus = runCommand(pipes[0]);
@@ -67,24 +67,27 @@ void parsePipes(char* str) {
 			pipe(&pipeline[2*i]);
 		}
 
-		/* Forking and traversing the pipeline */
+		/* Forking the children and traversing the pipeline */
 		for (int i = 0; i < numCommands; i++) {
 			int child = fork();
 			if (child < 0) {
 				perror("child fork failed!");
 				exit(-1);
 			} else if (child == 0) {
-				int exitStatus;
 			
 				if (i == 0) {
+					/* pipeline[0] is the outlet */
 					close(pipeline[0]);
 
 					dup2(pipeline[1], 1);
 					
+					/* Close unused pipes */
 					for (int j = 2; j < numPipes*2; j++) {
 						close(pipeline[j]);
 					}
 					exitStatus = runCommand(pipes[i]);
+
+					/* Close the inlet after the process finishes writing to it */
 					close(pipeline[1]);
 					
 				} else if (i+1 == numCommands) {
@@ -117,18 +120,20 @@ void parsePipes(char* str) {
 					close(pipeline[writeindex]);
 
 				} 
-				exit(exitStatus); // this should be exit status variable
+				
+				exit(exitStatus);
 			}
 
 		
 		}
-
+		/* Close the pipes and wait for the children to finish */
 		for (int i = 0; i < numPipes*2; i++) {
 			close(pipeline[i]);
 		}
 		for (int i = 0; i < numCommands; i++) {
 			wait(&exitStatus);
 		}
+	
 	if (exitStatus != -1) {
 		exitStatus = 127;
 	}
