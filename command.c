@@ -124,7 +124,7 @@ void parsePipes(char* str) {
 				exit(exitStatus);
 			}
 
-		
+			printf("PID %5d, exit status: %d\n", child, exitStatus);
 		}
 		/* Close the pipes and wait for the children to finish */
 		for (int i = 0; i < numPipes*2; i++) {
